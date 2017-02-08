@@ -10,11 +10,27 @@ maintainer:          hamanaka@cs.info.mie-u.ac.jp
 copyright:           2017 Kenta Hamanaka
 category:            Web
 build-type:          Simple
-cabal-version:       >=1.10
 extra-source-files:  README.md
+cabal-version:       >=1.10
+
+library
+  hs-source-dirs:      src
+  exposed-modules:     Lib
+  build-depends:       base >= 4.7 && < 5
+                     , slack-api
+                     , lens
+                     , text
+  default-language:    Haskell2010
 
 executable slackbot
-  hs-source-dirs:      src
+  hs-source-dirs:      .
   main-is:             Main.hs
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base
+                     , slackbot
+                     , slack-api
   default-language:    Haskell2010
-  build-depends:       base >= 4.7 && < 5
+
+source-repository head
+  type:     git
+  location: https://github.com/kentahama/slackbot
