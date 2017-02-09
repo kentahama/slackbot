@@ -1,6 +1,6 @@
 module Main where
 
-import Lib (myBot)
+import Bot (bot)
 
 import Web.Slack
 
@@ -16,4 +16,4 @@ main :: IO ()
 main = do
   apiToken <- fromMaybe (error "SLACK_API_TOKEN not set")
                <$> lookupEnv "SLACK_API_TOKEN"
-  runBot (myConfig apiToken) myBot ()
+  runBot (myConfig apiToken) bot ()

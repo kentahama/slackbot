@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Lib
-    ( myBot
+module Bot
+    ( bot
     ) where
 
 import Web.Slack
@@ -17,13 +17,13 @@ import qualified Data.Text.IO as TIO
 idText :: UserId -> T.Text
 idText uid = T.concat ["<@", uid ^. getId, ">"]
 
-myBot :: SlackBot ()
-myBot Hello = do
+bot :: SlackBot ()
+bot Hello = do
   myid <- use $ session . slackSelf . selfUserId
   liftIO $ print myid
-myBot (Message cid who msg time styp edt) = do
+bot (Message cid who msg time styp edt) = do
   myid <- use $ session . slackSelf . selfUserId
   when (idText myid `T.isPrefixOf` msg) $
     sendMessage cid "Hi!"
   liftIO $ TIO.putStrLn msg
-myBot _ = return ()
+bot _ = return ()
