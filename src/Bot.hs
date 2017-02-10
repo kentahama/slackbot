@@ -3,27 +3,55 @@ module Bot
     ( bot
     ) where
 
-import Web.Slack
-import Web.Slack.Message
+import           Web.Slack
+import           Web.Slack.Message      (sendMessage)
+import           Web.Slack.State        (config)
+import           Web.Slack.WebAPI       (files_upload)
+import           Control.Lens           (use)
+import           Control.Monad          (when)
+import           Control.Monad.IO.Class (liftIO)
+import           Control.Monad.Trans    (lift)
+import           Control.Monad.Except
+import qualified Data.Text    as T
+import qualified Data.Text.IO as T
+import           System.Process
+import           System.Exit
 
-import Control.Lens
+type TeX = T.Text
 
-import Control.Monad
-import Control.Monad.IO.Class
+platex :: IO (ExitCode, String)
+platex = do
+  (exitCode, stdout, stderr) <-
+    readProcessWithExitCode "platex" ["frame.tex"] ""
+  return (exitCode, concat [stdout, "\n",  stderr])
 
-import qualified Data.Text as T
-import qualified Data.Text.IO as TIO
+sendImage :: ChannelId -> FilePath -> Slack s ()
+sendImage cid path = do
+  conf <- use config
+  e <- runExceptT $ files_upload conf cid path "rendered.png"
+  liftIO $ print e
 
-idText :: UserId -> T.Text
-idText uid = T.concat ["<@", uid ^. getId, ">"]
+sendTeX :: ChannelId -> TeX -> Slack s ()
+sendTeX cid body = void . runExceptT $ do
+  liftIO $ T.writeFile "math.tex" body
+  (exitCode, errMsg) <- liftIO platex
+  when (exitCode /= ExitSuccess) $
+    throwError errMsg
+  liftIO $ system "run.sh"
+  lift $ sendImage cid "math.png"
+  `catchError` \errMsg -> lift $ do
+    sendMessage cid "error: see #stderr"
+    sendMessage (Id "#stderr") $ T.pack errMsg
 
 bot :: SlackBot ()
-bot Hello = do
-  myid <- use $ session . slackSelf . selfUserId
-  liftIO $ print myid
-bot (Message cid who msg time styp edt) = do
-  myid <- use $ session . slackSelf . selfUserId
-  when (idText myid `T.isPrefixOf` msg) $
-    sendMessage cid "Hi!"
-  liftIO $ TIO.putStrLn msg
+bot (Message cid _ msg _ _ _) = do
+  when (texPrefix `T.isPrefixOf` msg) $
+    sendTeX cid texBody
+  when (mathPrefix `T.isPrefixOf` msg) $
+    sendTeX cid $ T.concat ["$$", mathBody, "$$"]
+  where
+    texPrefix = "tex:"
+    texBody = T.drop (T.length texPrefix) msg
+    mathPrefix = "math:"
+    mathBody = T.drop (T.length mathPrefix) msg
 bot _ = return ()
