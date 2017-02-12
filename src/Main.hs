@@ -11,17 +11,22 @@ import Data.Maybe (fromMaybe)
 import Control.Monad (when)
 import qualified Data.Text as T
 
+texPrefix = "tex:"
+texBody msg = T.drop (T.length texPrefix) msg
+mathPrefix = "math:"
+mathBody msg = T.drop (T.length mathPrefix) msg
+
 bot :: SlackBot ()
 bot (Message cid _ msg _ _ _) = do
   when (texPrefix `T.isPrefixOf` msg) $
-    sendTeX cid texBody
+    sendTeX cid (texBody msg)
   when (mathPrefix `T.isPrefixOf` msg) $
-    sendTeX cid $ T.concat ["$$", mathBody, "$$"]
-  where
-    texPrefix = "tex:"
-    texBody = T.drop (T.length texPrefix) msg
-    mathPrefix = "math:"
-    mathBody = T.drop (T.length mathPrefix) msg
+    sendTeX cid $ T.concat ["$$", mathBody msg, "$$"]
+bot (HiddenMessage cid _  _ (Just (SMessageChanged (MessageUpdate _ msg _ _ _)))) = do
+  when (texPrefix `T.isPrefixOf` msg) $
+    sendTeX cid (texBody msg)
+  when (mathPrefix `T.isPrefixOf` msg) $
+    sendTeX cid $ T.concat ["$$", mathBody msg, "$$"]
 bot _ = return ()
 
 main :: IO ()
