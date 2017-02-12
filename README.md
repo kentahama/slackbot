@@ -12,7 +12,7 @@ Haskell-stack is required.
 resolver: lts-7.19   # you can change this
 packages:
 - '.'
-- location: https://github.com/kentahama/slack-api/archive/09c048fc3bc700cb8746eca96d9e8774e3e72352.tar.gz
+- location: https://github.com/kentahama/slack-api/archive/511448242cd59c9f6d00ffdc1dc37923e34d7bfb.tar.gz
   extra-dep: true
 ```
 
