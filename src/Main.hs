@@ -8,25 +8,31 @@ import Web.Slack
 import System.Environment (lookupEnv)
 import System.Directory (doesFileExist)
 import Data.Maybe (fromMaybe)
-import Control.Monad (when)
+import Control.Monad (forM_, when)
 import qualified Data.Text as T
 
-texPrefix = "tex:"
-texBody msg = T.drop (T.length texPrefix) msg
-mathPrefix = "math:"
-mathBody msg = T.drop (T.length mathPrefix) msg
+type Prefix = T.Text
+type MsgHandler = T.Text -> T.Text
+
+prefixes :: [(Prefix, MsgHandler)]
+prefixes = [ ("tex:" , id)
+           , ("math:", \msg -> T.concat ["$$", msg, "$$"])
+           ]
+
+dropPrefix :: Prefix -> T.Text -> T.Text
+dropPrefix = T.drop . T.length
 
 bot :: SlackBot ()
-bot (Message cid _ msg _ _ _) = do
-  when (texPrefix `T.isPrefixOf` msg) $
-    sendTeX cid (texBody msg)
-  when (mathPrefix `T.isPrefixOf` msg) $
-    sendTeX cid $ T.concat ["$$", mathBody msg, "$$"]
-bot (HiddenMessage cid _  _ (Just (SMessageChanged (MessageUpdate _ msg _ _ _)))) = do
-  when (texPrefix `T.isPrefixOf` msg) $
-    sendTeX cid (texBody msg)
-  when (mathPrefix `T.isPrefixOf` msg) $
-    sendTeX cid $ T.concat ["$$", mathBody msg, "$$"]
+bot (Message cid _ msg _ _ _) =
+  forM_ prefixes $ \(prefix, handler) ->
+    when (prefix `T.isPrefixOf` msg) $ do
+      let msgbody = dropPrefix prefix msg
+      sendTeX cid (handler msgbody)
+bot (HiddenMessage cid _  _ (Just (SMessageChanged (MessageUpdate _ msg _ _ _)))) =
+  forM_ prefixes $ \(prefix, handler) ->
+    when (prefix `T.isPrefixOf` msg) $ do
+      let msgbody = dropPrefix prefix msg
+      sendTeX cid (handler msgbody)
 bot _ = return ()
 
 main :: IO ()
@@ -35,7 +41,6 @@ main = do
   doesFileExist "run.sh"    >>= errorOnNotExist    "run.sh not found. Please run in 'work'."
   apiToken <- fromMaybe (error "SLACK_API_TOKEN not set")
                <$> lookupEnv "SLACK_API_TOKEN"
-  runBot (myConfig apiToken) bot ()
+  runBot (SlackConfig apiToken) bot ()
   where
     errorOnNotExist errMsg exist = when (not exist) (error errMsg)
-    myConfig apiToken = SlackConfig {_slackApiToken = apiToken}
